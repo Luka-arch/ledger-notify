@@ -5,9 +5,9 @@ on:
     # 04:00 UTC = 08:00 in Tbilisi (Georgia doesn't observe DST, so this
     # offset is fixed year-round — no adjustment needed).
     - cron: "0 4 * * *"
-  workflow_dispatch:
-  # ^ lets you trigger this manually from the Actions tab on GitHub, any
+      # lets you trigger this manually from the Actions tab on GitHub, any
   # time, for testing — no in-app "test" button needed anymore.
+  workflow_dispatch:
 
 jobs:
   notify:
