@@ -1,0 +1,10 @@
+{
+  "name": "ledger-notify",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Daily bill/motivational push notifications for Ledger, run by GitHub Actions instead of a Firebase Cloud Function.",
+  "main": "notify.js",
+  "dependencies": {
+    "firebase-admin": "^12.6.0"
+  }
+}
