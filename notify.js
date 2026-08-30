@@ -114,7 +114,60 @@ async function main() {
   await Promise.all(
     snap.docs.map((d) => processLedgerDoc(d).catch((err) => console.error(`Error processing ${d.id}:`, err)))
   );
+  await processRequests().catch((err) => console.error("Error processing requests:", err));
   console.log("Done.");
+}
+
+// ---- bill-split requests ----
+// Push to just one person's registered devices — used for both the "new
+// request" and "resolved" notices below.
+async function pushToUid(uid, title, body) {
+  const snap = await db.collection("ledgers").doc(uid).get();
+  const tokens = Array.isArray(snap.data()?.fcmTokens) ? snap.data().fcmTokens : [];
+  if (tokens.length === 0) return;
+  const resp = await messaging.sendEachForMulticast({
+    tokens,
+    notification: { title, body },
+    webpush: { notification: { icon: "/favicon.svg" }, fcmOptions: { link: "/" } },
+  });
+  const deadTokens = new Set();
+  resp.responses.forEach((r, i) => {
+    if (!r.success) {
+      const code = r.error?.code || "";
+      if (code.includes("registration-token-not-registered") || code.includes("invalid-argument")) deadTokens.add(tokens[i]);
+    }
+  });
+  if (deadTokens.size > 0) {
+    await snap.ref.update({ fcmTokens: tokens.filter((t) => !deadTokens.has(t)) });
+  }
+}
+
+// Notifies about brand-new pending requests (to the recipient) and requests
+// that just got accepted or declined (to the original requester). Each
+// request doc gets a "notified*" flag once handled so it's a one-time push,
+// no matter how often this script runs.
+async function processRequests() {
+  const pendingSnap = await db.collection("requests").where("status", "==", "pending").get();
+  for (const reqDoc of pendingSnap.docs) {
+    const r = reqDoc.data();
+    if (r.notifiedPending) continue;
+    const what = r.description || r.category || "a shared bill";
+    await pushToUid(r.toUid, "New bill request", `${r.fromEmail} wants ${r.amount} for ${what}`).catch((err) => console.error(`pushToUid failed for ${reqDoc.id}:`, err));
+    await reqDoc.ref.update({ notifiedPending: true });
+  }
+  if (pendingSnap.size > 0) console.log(`Requests: notified about ${pendingSnap.docs.filter((d) => !d.data().notifiedPending).length} new pending request(s)`);
+
+  const resolvedSnap = await db.collection("requests").where("status", "in", ["accepted", "declined"]).get();
+  for (const reqDoc of resolvedSnap.docs) {
+    const r = reqDoc.data();
+    if (r.notifiedResolved) continue;
+    if (r.status === "accepted") {
+      await pushToUid(r.fromUid, "Request accepted", `${r.toEmail} paid you ${r.amount} for ${r.description || r.category}`).catch((err) => console.error(`pushToUid failed for ${reqDoc.id}:`, err));
+    } else {
+      await pushToUid(r.fromUid, "Request declined", `${r.toEmail} declined your request for ${r.amount}`).catch((err) => console.error(`pushToUid failed for ${reqDoc.id}:`, err));
+    }
+    await reqDoc.ref.update({ notifiedResolved: true });
+  }
 }
 
 main().then(() => process.exit(0)).catch((err) => { console.error(err); process.exit(1); });
