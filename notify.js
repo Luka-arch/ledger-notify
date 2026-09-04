@@ -1,4 +1,4 @@
-// Ledger's daily notification check, running on GitHub Actions instead of a
+// Billist's daily notification check, running on GitHub Actions instead of a
 // Firebase Cloud Function — this needs no Blaze plan at all. Sending a push
 // through Firebase Cloud Messaging is free on any Firebase plan; the only
 // thing Blaze gates is Cloud Functions itself (i.e. "run code on a
@@ -90,7 +90,7 @@ async function processLedgerDoc(docSnap) {
   let settingsChanged = false;
   let updatedSettings = data.settings;
   if (notif.motivational && notif.lastMotivationalDate !== today) {
-    messages.push({ title: "Ledger", body: pickMotivational() });
+    messages.push({ title: "Billist", body: pickMotivational() });
     updatedSettings = { ...data.settings, notifications: { ...notif, lastMotivationalDate: today } };
     settingsChanged = true;
   }
