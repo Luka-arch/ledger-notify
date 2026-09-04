@@ -1,9 +1,10 @@
-name: Ledger daily notifications
+name: Billist daily notifications
 
 on:
   schedule:
+
     - cron: "*/15 * * * *"
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   notify:
